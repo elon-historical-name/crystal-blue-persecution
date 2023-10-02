@@ -8,6 +8,7 @@ from typing import Optional
 import dotenv
 from PIL import Image
 from atproto import AsyncClient, Client
+from atproto.exceptions import FirehoseError
 from atproto.xrpc_client.models.app.bsky.feed.defs import PostView
 from reactivex import operators as ops
 from reactivex.abc import DisposableBase
@@ -159,8 +160,13 @@ def main():
         on_next=lambda posts: repost_with_screenshot(posts=posts),
         scheduler=pool_scheduler
     )
-    print("Starting observation")
-    observer.start()
+    logger.info("Starting observation")
+    while True:
+        try:
+            observer.start()
+        except FirehoseError as e:
+            observer.stop()
+            logger.warning("FirehoseError occurred; Restarting observation", exc_info=1)
 
 
 if __name__ == '__main__':
