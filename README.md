@@ -27,7 +27,7 @@ You can find the DID of any account using
 
 Docker will mount that path.
 
-### SCREENSHOTS_DIR
+### SCREENSHOT_DIRECTORY
 
 Mandatory.
 
@@ -68,6 +68,7 @@ PUBLISHER_LOGIN=your-publisher-account@someprovider.me \
     PUBLISHER_PASSWORD=your-publisher-password \
     OBSERVER_LOGIN=your-observer-account@proton.me \
     OBSERVER_PASSWORD=your-observer-password \
+    SCREENSHOT_DIRECTORY=/your/path/to/store/screenshots \
     ACCOUNTS_JSON=/path/to/your/accounts.json
     docker-compose up
 ```
