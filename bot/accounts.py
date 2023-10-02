@@ -2,8 +2,6 @@ import json
 import os
 from typing import Dict
 
-import aiofiles
-
 
 def get_accounts() -> Dict[str, str]:
     accounts_database = os.environ.get("ACCOUNTS_JSON")
