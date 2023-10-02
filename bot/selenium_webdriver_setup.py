@@ -6,7 +6,7 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webdriver import WebDriver
 
-WINDOW_SIZE = "--window-size=730,1200"
+WINDOW_SIZE = "--window-size=600,1000"
 
 
 def setup_selenium() -> Optional[WebDriver]:
