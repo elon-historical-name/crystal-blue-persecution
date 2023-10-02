@@ -77,7 +77,8 @@ See above for details about the environment variables.
 ## Run (Local)
 
 ```console
-python main.py
+> cd bot
+> pip install -r requirements.txt && python main.py
 ```
 
 Make sure that all environment variables are specified. 
