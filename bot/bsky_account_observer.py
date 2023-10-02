@@ -72,6 +72,6 @@ class BskyPostObserver:
             # Let's push them into an observable to collect post URIs into a buffer which then
             # might be able to process multiple posts at once, thus avoiding
             # network throttling by bsky.app
-            uri = f'Enqueuing {commit.repo}/{op.path}'
-            print(f"Buffering {uri}")
+            uri = f'at://{commit.repo}/{op.path}'
+            print(f"Enqueueing {uri}")
             self._subject.on_next(uri)
