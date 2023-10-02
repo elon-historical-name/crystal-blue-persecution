@@ -1,0 +1,33 @@
+version: '3.8'
+
+networks:
+  web: {}
+
+services:
+  chrome:
+    image: seleniarm/standalone-chromium
+    environment:
+      - SE_NODE_SESSION_TIMEOUT=172800
+    privileged: true
+    shm_size: 2g
+    networks:
+      - web
+    ports:
+      - "4444:4444"
+  bot:
+    build: ./bot
+    networks:
+      - web
+    volumes:
+      - ./screenshots:/usr/src/app/screenshots
+      - $ACCOUNTS_JSON:/usr/src/app/accounts.json
+    depends_on:
+      - chrome
+    environment:
+      - IS_DOCKERIZED=1
+      - OBSERVER_LOGIN=$OBSERVER_LOGIN
+      - OBSERVER_PASSWORD=$OBSERVER_PASSWORD
+      - PUBLISHER_LOGIN=$PUBLISHER_LOGIN
+      - PUBLISHER_PASSWORD=$PUBLISHER_PASSWORD
+      - SCREENSHOT_DIRECTORY=/usr/src/app/screenshots
+      - ACCOUNTS_JSON=/usr/src/app/accounts.json
