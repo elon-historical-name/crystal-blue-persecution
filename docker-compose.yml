@@ -19,7 +19,7 @@ services:
     networks:
       - web
     volumes:
-      - ./screenshots:/usr/src/app/screenshots
+      - $SCREENSHOTS_DIR:/usr/src/app/screenshots
       - $ACCOUNTS_JSON:/usr/src/app/accounts.json
     depends_on:
       - chrome
