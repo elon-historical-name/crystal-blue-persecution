@@ -1,12 +1,13 @@
 from threading import Thread
-from typing import List, Optional
+from typing import List, Optional, Callable
 
 import reactivex as rx
 from atproto import models, CAR
 from atproto.firehose import parse_subscribe_repos_message, \
     FirehoseSubscribeReposClient
 from atproto.firehose.models import MessageFrame
-from reactivex import operators as ops
+from reactivex import operators as ops, Observable
+from custom_logger import logger
 
 from accounts import get_accounts
 
@@ -73,5 +74,5 @@ class BskyPostObserver:
             # might be able to process multiple posts at once, thus avoiding
             # network throttling by bsky.app
             uri = f'at://{commit.repo}/{op.path}'
-            print(f"Enqueueing {uri}")
+            logger.info(f"Enqueueing {uri}")
             self._subject.on_next(uri)

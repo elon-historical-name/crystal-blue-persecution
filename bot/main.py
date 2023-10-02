@@ -1,3 +1,4 @@
+import logging
 import multiprocessing
 import os
 from io import BytesIO
@@ -13,6 +14,7 @@ from reactivex.abc import DisposableBase
 from reactivex.scheduler import ThreadPoolScheduler
 from selenium.common import WebDriverException
 from selenium.webdriver.remote.webdriver import WebDriver
+from custom_logger import logger
 
 from accounts import get_accounts
 from bsky_account_observer import BskyPostObserver
@@ -58,12 +60,16 @@ def screenshot(post: PostView, retry: int = 0, retry_limit: int = 5) -> Optional
     try:
         browser.get(url)
         sleep(5)
-        print(f"Storing Screenshot of {post.uri} from {post.author.handle}")
+        logger.info(f"Storing Screenshot of {post.uri} from {post.author.handle}")
         browser.save_screenshot(
             screenshot_path
         )
     except WebDriverException as e:
         if retry >= retry_limit:
+            logger.error(
+                f"Unrecoverable exception occurred on attempting to screenshot {url}",
+                exc_info=1
+            )
             raise e
         browser = None
         return screenshot(post, retry=retry+1, retry_limit=retry_limit)
@@ -77,7 +83,7 @@ def repost_with_screenshot(posts: [str]):
     if observation_client is None:
         observation_client = setup_observation_client()
     if observation_client is None:
-        print("Observation is disabled")
+        logger.warning("Observation is disabled")
         return
     search_result = observation_client.app.bsky.feed.get_posts(
         params={
@@ -95,7 +101,7 @@ def repost_with_screenshot(posts: [str]):
         screenshot_path = screenshot(post)
         url = f"https://bsky.app/profile/{post.author.handle}/post/{content_identifier}"
         if screenshot_path is None:
-            print(f"Unable to take screenshot of {url}")
+            logging.error(f"Unable to take screenshot of {url}")
             continue
         if publisher_client is None:
             continue
@@ -111,8 +117,8 @@ def repost_with_screenshot(posts: [str]):
         raw_image_bytes = image_bytes.getvalue()
         while retries < retry_limit:
             try:
-                print(
-                    f"Reposting using {os.environ.get('PUBLISHER_LOGIN')}"
+                logger.info(
+                    f"Re-publishing {url} from {post.author.handle} with {os.environ.get('PUBLISHER_LOGIN')}"
                     f"\n\tScreenshot size: {len(raw_image_bytes)/1000/1000} MB"
                 )
                 publisher_client.send_image(
@@ -124,12 +130,16 @@ def repost_with_screenshot(posts: [str]):
             except Exception as e:
                 retries += 1
                 if retries == retry_limit:
+                    logger.error(
+                        f"Unrecoverable exception occurred on attempting to repost {url}",
+                        exc_info=1
+                    )
                     raise e
                 sleep(10)
 
 
 def main():
-    print(
+    logger.info(
         f"Configuring."
         f"\n\tObserver: {os.environ.get('OBSERVER_LOGIN')} "
         f"\n\tPublisher: {os.environ.get('PUBLISHER_LOGIN')}"
