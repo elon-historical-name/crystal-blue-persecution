@@ -7,7 +7,7 @@ from typing import Optional
 
 import dotenv
 from PIL import Image
-from atproto import AsyncClient, Client
+from atproto import Client
 from atproto.exceptions import FirehoseError
 from atproto.xrpc_client.models.app.bsky.feed.defs import PostView
 from reactivex import operators as ops
@@ -22,8 +22,8 @@ from bsky_account_observer import BskyPostObserver
 from selenium_webdriver_setup import setup_selenium
 
 browser: Optional[WebDriver] = None
-publisher_client: Optional[AsyncClient] = None
-observation_client: Optional[AsyncClient] = None
+publisher_client: Optional[Client] = None
+observation_client: Optional[Client] = None
 observation_subscription: Optional[DisposableBase] = None
 
 
