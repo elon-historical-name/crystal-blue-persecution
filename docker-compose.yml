@@ -8,8 +8,10 @@ services:
     image: seleniarm/standalone-chromium
     environment:
       - SE_NODE_SESSION_TIMEOUT=172800
+      - START_XVFB=false
     privileged: true
     shm_size: 2g
+    restart: always
     networks:
       - web
     ports:
