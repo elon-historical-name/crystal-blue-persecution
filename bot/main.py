@@ -2,6 +2,7 @@ import logging
 import multiprocessing
 import os
 from io import BytesIO
+from threading import Thread
 from time import sleep
 from typing import Optional
 
@@ -15,13 +16,12 @@ from reactivex.abc import DisposableBase
 from reactivex.scheduler import ThreadPoolScheduler
 from selenium.common import WebDriverException
 from selenium.webdriver.remote.webdriver import WebDriver
-from custom_logger import logger
 
 from accounts import get_accounts
 from bsky_account_observer import BskyPostObserver
+from custom_logger import logger
 from selenium_webdriver_setup import setup_selenium
 
-browser: Optional[WebDriver] = None
 publisher_client: Optional[Client] = None
 observation_client: Optional[Client] = None
 observation_subscription: Optional[DisposableBase] = None
@@ -48,17 +48,16 @@ def setup_publisher_client() -> Optional[Client]:
 
 
 def screenshot(post: PostView, retry: int = 0, retry_limit: int = 5) -> Optional[str]:
-    global browser
-    if browser is None:
-        browser = setup_selenium()
-    if browser is None:
-        return None
     model_name = "app.bsky.feed.post"
     screenshots_dir = os.environ.get("SCREENSHOT_DIRECTORY")
     content_identifier = post.uri.replace(f"at://{post.author.did}/{model_name}/", "")
     screenshot_path = f"{screenshots_dir}/{post.author.handle}_{content_identifier}.png"
     url = f"https://bsky.app/profile/{post.author.handle}/post/{content_identifier}"
+    browser: Optional[WebDriver] = None
     try:
+        browser = setup_selenium()
+        if browser is None:
+            return None
         browser.get(url)
         sleep(5)
         logger.info(f"Storing Screenshot of {post.uri} from {post.author.handle}")
@@ -71,7 +70,6 @@ def screenshot(post: PostView, retry: int = 0, retry_limit: int = 5) -> Optional
                 f"Unrecoverable exception occurred on attempting to screenshot {url}; attempt reconnect.",
                 exc_info=1
             )
-            browser = setup_selenium()
             return screenshot(post, retry=retry + 1, retry_limit=retry_limit)
         if retry > retry_limit:
             logger.error(
@@ -79,15 +77,16 @@ def screenshot(post: PostView, retry: int = 0, retry_limit: int = 5) -> Optional
                 exc_info=1
             )
             raise e
-        browser = None
         return screenshot(post, retry=retry+1, retry_limit=retry_limit)
+    finally:
+        if browser is not None:
+            browser.close()
     return screenshot_path
 
 
 def repost_with_screenshot(posts: [str]):
     global publisher_client
     global observation_client
-    global browser
     if observation_client is None:
         observation_client = setup_observation_client()
     if observation_client is None:
@@ -148,6 +147,10 @@ def repost_with_screenshot(posts: [str]):
                 sleep(10)
 
 
+def schedule_repost(posts: [str]):
+    Thread(target=repost_with_screenshot, args=(posts,), daemon=True).start()
+
+
 def main():
     logger.info(
         f"Configuring."
@@ -166,7 +169,7 @@ def main():
     ).pipe(
         ops.subscribe_on(pool_scheduler)
     ).subscribe(
-        on_next=lambda posts: repost_with_screenshot(posts=posts),
+        on_next=lambda posts: schedule_repost(posts),
         scheduler=pool_scheduler
     )
     retries = 0

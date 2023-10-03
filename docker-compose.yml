@@ -9,6 +9,8 @@ services:
     environment:
       - SE_NODE_SESSION_TIMEOUT=172800
       - START_XVFB=false
+      - SE_NODE_OVERRIDE_MAX_SESSIONS=true
+      - SE_NODE_MAX_SESSIONS=5
     privileged: true
     shm_size: 2g
     restart: always
