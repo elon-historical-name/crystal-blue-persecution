@@ -59,7 +59,7 @@ def screenshot(post: PostView, retry: int = 0, retry_limit: int = 5) -> Optional
         if browser is None:
             return None
         browser.get(url)
-        sleep(5)
+        sleep(8.5)
         logger.info(f"Storing Screenshot of {post.uri} from {post.author.handle}")
         browser.save_screenshot(
             screenshot_path
