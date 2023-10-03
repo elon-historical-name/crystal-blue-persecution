@@ -172,15 +172,12 @@ def main():
         on_next=lambda posts: schedule_repost(posts),
         scheduler=pool_scheduler
     )
-    retries = 0
-    retry_limit = 10
-    while retries < retry_limit:
+    while True:
         try:
             logger.info("Starting observation")
             observer.start()
         except FirehoseError as e:
             logger.info("Observation failed/cancelled; retrying")
-            retries += 1
             observer.stop()
             logger.warning("FirehoseError occurred; Restarting observation", exc_info=1)
 
