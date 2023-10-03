@@ -1,5 +1,9 @@
 # BlueSky Repost Bot
 
+## Dependencies
+
+Requires Python 3.11.x.
+
 ## Environment variables
 
 ### ACCOUNTS_JSON
