@@ -2,7 +2,7 @@
 
 ## Dependencies
 
-Requires Python 3.11.x.
+Requires Python 3.11.x & a Selenium Chrome Webdriver for local development (Should work with other Chromium Browsers, such as Brave, as well).
 
 ## Environment variables
 
