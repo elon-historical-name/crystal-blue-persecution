@@ -98,6 +98,7 @@ def repost_with_screenshot(posts: [str]):
             "uris": posts
         }
     )
+    logger.info(f"Processing {len(search_result.posts)} post(s)")
     for post in search_result.posts:
         if post.author.did not in (get_accounts()).values():
             continue
@@ -112,6 +113,7 @@ def repost_with_screenshot(posts: [str]):
             logging.error(f"Unable to take screenshot of {url}")
             continue
         if publisher_client is None:
+            logging.info(f"Publishing disabled")
             continue
         image_bytes = BytesIO()
         # Convert shots to JPEG to compress them - BlueSky limits uploads to 1MB
@@ -167,11 +169,15 @@ def main():
         on_next=lambda posts: repost_with_screenshot(posts=posts),
         scheduler=pool_scheduler
     )
-    logger.info("Starting observation")
-    while True:
+    retries = 0
+    retry_limit = 10
+    while retries < retry_limit:
         try:
+            logger.info("Starting observation")
             observer.start()
         except FirehoseError as e:
+            logger.info("Observation failed/cancelled; retrying")
+            retries += 1
             observer.stop()
             logger.warning("FirehoseError occurred; Restarting observation", exc_info=1)
 

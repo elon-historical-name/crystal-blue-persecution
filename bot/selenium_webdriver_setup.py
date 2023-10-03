@@ -5,6 +5,7 @@ from typing import Optional
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webdriver import WebDriver
+from custom_logger import logger
 
 WINDOW_SIZE = "--window-size=600,1000"
 
@@ -12,6 +13,7 @@ WINDOW_SIZE = "--window-size=600,1000"
 def setup_selenium() -> Optional[WebDriver]:
     if 'OBSERVER_LOGIN' not in os.environ.keys() or 'OBSERVER_PASSWORD' not in os.environ.keys():
         return None
+    logger.info("Setting up Selenium")
     if os.environ.get("IS_DOCKERIZED") != "1":
         driver_opts = webdriver.ChromeOptions()
         driver_opts.add_argument("--headless")

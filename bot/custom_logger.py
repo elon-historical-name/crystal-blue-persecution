@@ -1,5 +1,6 @@
 import functools
 import logging
+import os
 import sys
 import types
 
@@ -38,8 +39,11 @@ def cached_mod_property(func):
 
 @cached_mod_property
 def logger() -> logging.Logger:
+    log_format = '%(asctime)s %(levelname)-8s %(message)s' \
+        if os.environ.get("IS_DOCKERIZED") != "1" \
+        else '%(levelname)-8s %(message)s'
     formatter = logging.Formatter(
-        fmt='%(asctime)s %(levelname)-8s %(message)s',
+        fmt=log_format,
         datefmt='%Y-%m-%d %H:%M:%S'
     )
     screen_handler = logging.StreamHandler(stream=sys.stdout)
