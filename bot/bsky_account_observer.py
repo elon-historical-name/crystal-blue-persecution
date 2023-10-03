@@ -56,7 +56,7 @@ class BskyPostObserver:
     def process_firehose_message(self, message: MessageFrame):
         # we'll process this in another thread since exceptions might occur if the processing takes too much time
         # (aka fire & forget)
-        t = Thread(target=self.enqueue, args=(message,))
+        t = Thread(target=self.enqueue, args=(message,), daemon=True)
         t.start()
         return None
 
