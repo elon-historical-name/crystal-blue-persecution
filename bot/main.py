@@ -66,7 +66,14 @@ def screenshot(post: PostView, retry: int = 0, retry_limit: int = 5) -> Optional
             screenshot_path
         )
     except WebDriverException as e:
-        if retry >= retry_limit:
+        if retry == retry_limit:
+            logger.error(
+                f"Unrecoverable exception occurred on attempting to screenshot {url}; attempt reconnect.",
+                exc_info=1
+            )
+            browser = setup_selenium()
+            return screenshot(post, retry=retry + 1, retry_limit=retry_limit)
+        if retry > retry_limit:
             logger.error(
                 f"Unrecoverable exception occurred on attempting to screenshot {url}",
                 exc_info=1
