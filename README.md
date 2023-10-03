@@ -89,3 +89,11 @@ See above for details about the environment variables.
 Make sure that all environment variables are specified. 
 
 You can use a .env file to do so.
+
+## Note
+
+I've been observing stability issues all over the place - Python's asyncio unfortunately seems a little unstable within this context,
+Selenium sometimes causes issues with it's session handling and unfortunately drops sessions.
+
+In order to mitigate these issues, you could use a cron job (for now) to let Docker restart the container every 30 minutes or so.
+You'll might miss some content this way, but this is still preferable to running into some weird, invalid state.
