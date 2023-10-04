@@ -1,19 +1,19 @@
+import asyncio
+import logging
 import os
-from time import sleep
 from typing import Optional
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webdriver import WebDriver
-from custom_logger import logger
 
 WINDOW_SIZE = "--window-size=600,1000"
 
 
-def setup_selenium() -> Optional[WebDriver]:
+async def setup_selenium() -> Optional[WebDriver]:
     if 'OBSERVER_LOGIN' not in os.environ.keys() or 'OBSERVER_PASSWORD' not in os.environ.keys():
         return None
-    logger.info("Setting up Selenium")
+    logging.info("Setting up Selenium")
     if os.environ.get("IS_DOCKERIZED") != "1":
         driver_opts = webdriver.ChromeOptions()
         driver_opts.add_argument("--headless")
@@ -22,7 +22,7 @@ def setup_selenium() -> Optional[WebDriver]:
         driver = webdriver.Chrome(options=driver_opts)
     else:
         # let's give chromium standalone some time to boot
-        sleep(2)
+        await asyncio.sleep(2)
         driver_opts = webdriver.ChromeOptions()
         driver_opts.add_argument("--headless")
         driver_opts.add_argument(WINDOW_SIZE)
@@ -49,11 +49,11 @@ def setup_selenium() -> Optional[WebDriver]:
     )
     username_field.send_keys(os.environ.get('OBSERVER_LOGIN'))
     password_field.send_keys(os.environ.get('OBSERVER_PASSWORD'))
-    sleep(2)
+    await asyncio.sleep(2)
     sign_in_button = driver.find_element(
         By.XPATH,
         "//button[@data-testid='loginNextButton']"
     )
     sign_in_button.click()
-    sleep(5)
+    await asyncio.sleep(5)
     return driver

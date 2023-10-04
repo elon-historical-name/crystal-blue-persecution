@@ -1,4 +1,4 @@
-.env
+bot/.env
 venv
 bot/resources
 accounts.json
@@ -7,3 +7,6 @@ screenshots/.DS_Store
 bot/__pycache__
 .DS_Store
 screenshots/*.png
+restart-crystal-blue-persecution.sh
+.env
+bot/.test.env

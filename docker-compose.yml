@@ -36,3 +36,5 @@ services:
       - PUBLISHER_PASSWORD=$PUBLISHER_PASSWORD
       - SCREENSHOT_DIRECTORY=/usr/src/app/screenshots
       - ACCOUNTS_JSON=/usr/src/app/accounts.json
+      - TELEGRAM_API_KEY=$TELEGRAM_API_KEY
+      - TELEGRAM_CHANNEL_ID=$TELEGRAM_CHANNEL_ID

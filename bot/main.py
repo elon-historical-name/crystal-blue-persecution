@@ -1,66 +1,53 @@
+import asyncio
 import logging
-import multiprocessing
 import os
+import sys
 from io import BytesIO
-from threading import Thread
-from time import sleep
 from typing import Optional
 
 import dotenv
 from PIL import Image
-from atproto import Client
+from atproto import AsyncClient
 from atproto.exceptions import FirehoseError
-from atproto.xrpc_client.models.app.bsky.feed.defs import PostView
-from reactivex import operators as ops
 from reactivex.abc import DisposableBase
-from reactivex.scheduler import ThreadPoolScheduler
 from selenium.common import WebDriverException
 from selenium.webdriver.remote.webdriver import WebDriver
 
-from accounts import get_accounts
-from bsky_account_observer import BskyPostObserver
-from custom_logger import logger
+from bsky_account_observer import BskyPostObserver, ObservedPost
+from bsky_api_extensions import fetch_handle
+from event_loop import event_loop, async_io_scheduler
 from selenium_webdriver_setup import setup_selenium
+from telegram_publisher import publish_to_tg_channel
 
-publisher_client: Optional[Client] = None
-observation_client: Optional[Client] = None
 observation_subscription: Optional[DisposableBase] = None
 
 
-def setup_observation_client() -> Client:
-    client = Client()
-    client.login(
-        login=os.environ.get("OBSERVER_LOGIN"),
-        password=os.environ.get("OBSERVER_PASSWORD")
-    )
-    return client
-
-
-def setup_publisher_client() -> Optional[Client]:
+async def setup_publisher_client() -> Optional[AsyncClient]:
     if "PUBLISHER_LOGIN" in os.environ.keys() and "PUBLISHER_PASSWORD" in os.environ.keys():
-        client = Client()
-        client.login(
-            login=os.environ.get("PUBLISHER_LOGIN"),
-            password=os.environ.get("PUBLISHER_PASSWORD")
-        )
+        client = AsyncClient()
+        try:
+            await client.login(
+                login=os.environ.get("PUBLISHER_LOGIN"),
+                password=os.environ.get("PUBLISHER_PASSWORD")
+            )
+        except Exception as e:
+            logging.error(e)
+            return None
         return client
     return None
 
 
-def screenshot(post: PostView, retry: int = 0, retry_limit: int = 5) -> Optional[str]:
-    model_name = "app.bsky.feed.post"
+async def take_screenshot(post: ObservedPost, retry: int = 0, retry_limit: int = 5) -> Optional[str]:
     screenshots_dir = os.environ.get("SCREENSHOT_DIRECTORY")
-    content_identifier = post.uri.replace(f"at://{post.author.did}/{model_name}/", "")
-    screenshot_path = f"{screenshots_dir}/{post.author.handle}_{content_identifier}.png"
-    url = f"https://bsky.app/profile/{post.author.handle}/post/{content_identifier}"
+    screenshot_path = f"{screenshots_dir}/{post.commit_repo}_{post.content_identifier}.png"
     browser: Optional[WebDriver] = None
     try:
-        browser = setup_selenium()
+        browser = await setup_selenium()
         if browser is None:
             return None
-        browser.get(url)
-        sleep(8.5)
-        logger.info(f"Storing Screenshot of {post.uri} from {post.author.handle}")
+        browser.get(post.http_url_to_post)
+        await asyncio.sleep(8.5)
+        logging.info(f"Storing Screenshot of {post.http_url_to_post}")
         browser.save_screenshot(
             screenshot_path
         )
@@ -68,53 +55,38 @@ def screenshot(post: PostView, retry: int = 0, retry_limit: int = 5) -> Optional
         if browser is not None:
             browser.quit()
         if retry == retry_limit:
-            logger.error(
-                f"Unrecoverable exception occurred on attempting to screenshot {url}; attempt reconnect.",
-                exc_info=1
+            logging.error(
+                f"Unrecoverable exception occurred on attempting to screenshot {post.http_url_to_post}; "
+                f"attempt reconnect.",
+                e
             )
-            return screenshot(post, retry=retry + 1, retry_limit=retry_limit)
+            return await take_screenshot(post, retry=retry + 1, retry_limit=retry_limit)
         if retry > retry_limit:
             if browser is not None:
                 browser.quit()
-            logger.error(
-                f"Unrecoverable exception occurred on attempting to screenshot {url}",
-                exc_info=1
+            logging.error(
+                f"Unrecoverable exception occurred on attempting to screenshot {post.http_url_to_post}",
+                e
             )
             raise e
-        return screenshot(post, retry=retry+1, retry_limit=retry_limit)
+        return await take_screenshot(post, retry=retry + 1, retry_limit=retry_limit)
     finally:
         if browser is not None:
             browser.quit()
     return screenshot_path
 
 
-def repost_with_screenshot(posts: [str]):
-    global publisher_client
-    global observation_client
-    if observation_client is None:
-        observation_client = setup_observation_client()
-    if observation_client is None:
-        logger.warning("Observation is disabled")
-        return
-    search_result = observation_client.app.bsky.feed.get_posts(
-        params={
-            "uris": posts
-        }
-    )
-    logger.info(f"Processing {len(search_result.posts)} post(s)")
-    for post in search_result.posts:
-        if post.author.did not in (get_accounts()).values():
-            continue
-        if publisher_client is None:
-            publisher_client = setup_publisher_client()
-
-        model_name = "app.bsky.feed.post"
-        content_identifier = post.uri.replace(f"at://{post.author.did}/{model_name}/", "")
-        screenshot_path = screenshot(post)
-        url = f"https://bsky.app/profile/{post.author.handle}/post/{content_identifier}"
+async def repost_with_screenshot(posts: [ObservedPost]):
+    logging.info(f"Processing {len(posts)} post(s)")
+    publisher_client = await setup_publisher_client()
+    for post in posts:
+        screenshot_path = await take_screenshot(post)
+        url = post.http_url_to_post
         if screenshot_path is None:
             logging.error(f"Unable to take screenshot of {url}")
             continue
+        handle = await fetch_handle(post.commit_repo)
+        await publish_to_tg_channel(post=post, screenshot_path=screenshot_path, user_handle=handle)
         if publisher_client is None:
             logging.info(f"Publishing disabled")
             continue
@@ -128,13 +100,16 @@ def repost_with_screenshot(posts: [str]):
         retries = 0
         retry_limit = 10
         raw_image_bytes = image_bytes.getvalue()
+        if publisher_client is None:
+            continue
+        handle = handle if handle is not None else post.commit_repo
         while retries < retry_limit:
             try:
-                logger.info(
-                    f"Re-publishing {url} from {post.author.handle} with {os.environ.get('PUBLISHER_LOGIN')}"
+                logging.info(
+                    f"Re-publishing {url} from {handle} with {os.environ.get('PUBLISHER_LOGIN')}"
                     f"\n\tScreenshot size: {len(raw_image_bytes)/1000/1000} MB"
                 )
-                publisher_client.send_image(
+                await publisher_client.send_image(
                     text=url,
                     image=raw_image_bytes,
                     image_alt=url
@@ -143,49 +118,51 @@ def repost_with_screenshot(posts: [str]):
             except Exception as e:
                 retries += 1
                 if retries == retry_limit:
-                    logger.error(
+                    logging.error(
                         f"Unrecoverable exception occurred on attempting to repost {url}",
-                        exc_info=1
+                        e
                     )
                     raise e
-                sleep(10)
+                await asyncio.sleep(10)
 
 
-def schedule_repost(posts: [str]):
-    Thread(target=repost_with_screenshot, args=(posts,), daemon=True).start()
-
-
-def main():
-    logger.info(
+async def main():
+    logging.info(
         f"Configuring."
         f"\n\tObserver: {os.environ.get('OBSERVER_LOGIN')} "
         f"\n\tPublisher: {os.environ.get('PUBLISHER_LOGIN')}"
     )
     global observation_subscription
 
-    optimal_thread_count = multiprocessing.cpu_count()
-    pool_scheduler = ThreadPoolScheduler(optimal_thread_count)
+    asyncio.set_event_loop(loop=event_loop)
 
     observer = BskyPostObserver()
     observation_subscription = observer.posts(
         schedule_s=30.0,
         capacity=25  # This is the maximum supported by ATProto/BlueSky
-    ).pipe(
-        ops.subscribe_on(pool_scheduler)
     ).subscribe(
-        on_next=lambda posts: schedule_repost(posts),
-        scheduler=pool_scheduler
+        on_next=lambda posts: event_loop.create_task(repost_with_screenshot(posts)),
+        scheduler=async_io_scheduler
     )
     while True:
         try:
-            logger.info("Starting observation")
-            observer.start()
+            logging.info("Starting observation")
+            await observer.start()
         except FirehoseError as e:
-            logger.info("Observation failed/cancelled; retrying")
-            observer.stop()
-            logger.warning("FirehoseError occurred; Restarting observation", exc_info=1)
+            logging.info("Observation failed/cancelled; retrying")
+            await observer.stop()
+            logging.warning("FirehoseError occurred; Restarting observation", e)
 
 
 if __name__ == '__main__':
-    dotenv.load_dotenv()
-    main()
+    dotenv.load_dotenv(".test.env")
+    log_format = '%(asctime)s %(levelname)-8s %(message)s' \
+        if os.environ.get("IS_DOCKERIZED") != "1" \
+        else '%(levelname)-8s %(message)s'
+    logging.basicConfig(
+        level=logging.INFO,
+        format=log_format,
+        datefmt='%Y-%m-%d %H:%M:%S',
+        stream=sys.stdout
+    )
+    event_loop.run_until_complete(main())

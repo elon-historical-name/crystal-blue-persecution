@@ -63,15 +63,29 @@ Mandatory if run outside of Docker.
 
 Specifies the path to the Chrome binary.
 
+## TELEGRAM_API_KEY
+
+Optional.
+
+Your Telegram API key.
+
+## TELEGRAM_CHANNEL_ID
+
+Optional.
+
+Channel ID for republish content on Telegram.
+
 ## Run (Docker)
 
 Run 
 
 ```console
-PUBLISHER_LOGIN=your-publisher-account@someprovider.me \ 
+PUBLISHER_LOGIN=your-publisher-account@someprovider.me \
     PUBLISHER_PASSWORD=your-publisher-password \
     OBSERVER_LOGIN=your-observer-account@proton.me \
     OBSERVER_PASSWORD=your-observer-password \
+    TELEGRAM_API_KEY=telegram-api-key \
+    TELEGRAM_CHANNEL_ID=telegram-channel-id \
     SCREENSHOT_DIRECTORY=/your/path/to/store/screenshots \
     ACCOUNTS_JSON=/path/to/your/accounts.json
     docker-compose up
