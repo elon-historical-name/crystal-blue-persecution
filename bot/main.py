@@ -39,7 +39,7 @@ async def setup_publisher_client() -> Optional[AsyncClient]:
 
 async def take_screenshot(post: ObservedPost, retry: int = 0, retry_limit: int = 5) -> Optional[str]:
     screenshots_dir = os.environ.get("SCREENSHOT_DIRECTORY")
-    screenshot_path = f"{screenshots_dir}/{post.commit_repo}_{post.content_identifier}.png"
+    screenshot_path = f"{screenshots_dir}/{post.commit_repo.replace(':', '-')}_{post.content_identifier}.png"
     browser: Optional[WebDriver] = None
     try:
         browser = await setup_selenium()
