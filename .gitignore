@@ -1,0 +1,8 @@
+.idea
+.DS_Store
+__pycache__
+bot/.env
+data
+
+start-environment.sh
+start-test-environment.sh

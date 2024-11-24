@@ -1,0 +1,58 @@
+version: '3.8'
+
+networks:
+  web: {}
+
+services:
+  chrome:
+    image: seleniarm/standalone-chromium
+    environment:
+      - SE_NODE_SESSION_TIMEOUT=172800
+      - START_XVFB=false
+      - SE_NODE_OVERRIDE_MAX_SESSIONS=true
+      - SE_NODE_MAX_SESSIONS=5
+    privileged: true
+    shm_size: 2g
+    restart: always
+    networks:
+      - web
+  distribution:
+    build:
+      context: ./bot
+      dockerfile: ../Dockerfile
+    restart: always
+    volumes:
+      - $SQLITE_DB_DIR_HOST_PATH:/usr/src/app/database/
+    networks:
+      - web
+    depends_on:
+      - chrome
+    environment:
+      - IS_DOCKERIZED=1
+      - OBSERVER_LOGIN=$OBSERVER_LOGIN
+      - OBSERVER_PASSWORD=$OBSERVER_PASSWORD
+      - OBSERVER_LOGIN_ALTERNATIVE=$OBSERVER_LOGIN_ALTERNATIVE
+      - OBSERVER_PASSWORD_ALTERNATIVE=$OBSERVER_PASSWORD_ALTERNATIVE
+      - TELEGRAM_API_KEY=$TELEGRAM_API_KEY
+      - SCREENSHOT_DIRECTORY=/usr/src/app/screenshots
+      - SQLALCHEMY_URL=sqlite+aiosqlite:////usr/src/app/database/${SQLITE_DB_FILENAME}
+      - EXEC_MODE=distribute_content
+  subscription:
+    build:
+      context: ./bot
+      dockerfile: ../Dockerfile
+    restart: always
+    volumes:
+      - $SQLITE_DB_DIR_HOST_PATH:/usr/src/app/database/
+    networks:
+      - web
+    environment:
+      - IS_DOCKERIZED=1
+      - OBSERVER_LOGIN=$OBSERVER_LOGIN
+      - OBSERVER_PASSWORD=$OBSERVER_PASSWORD
+      - OBSERVER_LOGIN_ALTERNATIVE=$OBSERVER_LOGIN_ALTERNATIVE
+      - OBSERVER_PASSWORD_ALTERNATIVE=$OBSERVER_PASSWORD_ALTERNATIVE
+      - TELEGRAM_API_KEY=$TELEGRAM_API_KEY
+      - SCREENSHOT_DIRECTORY=/usr/src/screenshots
+      - SQLALCHEMY_URL=sqlite+aiosqlite:////usr/src/app/database/${SQLITE_DB_FILENAME}
+      - EXEC_MODE=manage_subscriptions
