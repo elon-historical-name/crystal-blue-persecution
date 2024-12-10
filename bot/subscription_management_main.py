@@ -40,7 +40,7 @@ async def list_subscriptions_command(update: Update, context: ContextTypes.DEFAU
             accounts = [f"- {await fetch_handle(did)}" for did in accounts]
             await update.get_bot().send_message(
                 chat_id=message.chat_id,
-                text="\t\n".join(accounts)
+                text="\t\n".join([handle for handle in accounts if handle is not None])
             )
         else:
             await message.reply_text(
