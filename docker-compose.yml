@@ -13,14 +13,14 @@ services:
       - SE_NODE_MAX_SESSIONS=5
     privileged: true
     shm_size: 2g
-    restart: always
+    restart: on-failure
     networks:
       - web
   distribution:
     build:
       context: ./bot
       dockerfile: ../Dockerfile
-    restart: always
+    restart: on-failure
     volumes:
       - $SQLITE_DB_DIR_HOST_PATH:/usr/src/app/database/
     networks:
@@ -41,7 +41,7 @@ services:
     build:
       context: ./bot
       dockerfile: ../Dockerfile
-    restart: always
+    restart: on-failure
     volumes:
       - $SQLITE_DB_DIR_HOST_PATH:/usr/src/app/database/
     networks:
