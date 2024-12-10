@@ -5,7 +5,7 @@ networks:
 
 services:
   chrome:
-    image: seleniarm/standalone-chromium
+    image: selenium/standalone-chromium
     environment:
       - SE_NODE_SESSION_TIMEOUT=172800
       - START_XVFB=false
