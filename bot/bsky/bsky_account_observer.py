@@ -65,6 +65,8 @@ class BskyPostObserver:
             # network throttling by bsky.app
             if op.action != 'create':
                 continue
+            if op.path.startswith("blue.place.pixel"):
+                continue
             record_raw_data = car.blocks.get(op.cid)
             if not record_raw_data:
                 continue
