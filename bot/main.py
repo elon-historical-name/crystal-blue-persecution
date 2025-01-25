@@ -6,7 +6,7 @@ import sys
 import dotenv
 
 from distribution_main import distribute_posts
-from subscription_management_main import manage_subscriptions
+from subscription_management_main import manage_subscriptions, get_post_info
 
 if __name__ == '__main__':
     dotenv.load_dotenv()

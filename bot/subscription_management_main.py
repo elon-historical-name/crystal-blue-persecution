@@ -12,7 +12,8 @@ from telegram.constants import ParseMode
 from telegram.ext import ContextTypes, CommandHandler, Application, MessageHandler
 
 from bsky.bluesky_credentials import BlueSkyCredentials
-from bsky.bsky_api_extensions import fetch_handle, fetch_did, find_users
+from bsky.bsky_api_extensions import fetch_handle, fetch_did, find_users, \
+    get_post_info
 from event_loop import event_loop
 from model.subscription import Subscription
 from run_migrations import run_migrations_async
@@ -21,6 +22,32 @@ from telegram_extensions import link
 engine: Optional[AsyncEngine] = None
 async_session: Optional[sessionmaker] = None
 
+async def get_post_info_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    message = update.message if update.message else update.channel_post
+    post_url = None
+    if update.channel_post:
+        args = message.text.split(" ")
+        args.pop(0)
+        post_url = args[0]
+    elif update.message:
+        post_url = context.args[0] if context.args and update else None
+    if post_url is None:
+        await message.reply_text(
+            f"You didn't provide a post URL, such as https://bsky.app/profile/did:plc:5n3pxz7xpnrzuxprkjewbki/post/gkklcv73c26."
+            f"\n\nUsage: /post someone.bsky.social https://bsky.app/profile/did:plc:5n3pxz7xpnrzuxprkjewbki/post/gkklcv73c26"
+        )
+        return
+    post_info = get_post_info(post_url, credentials=BlueSkyCredentials(
+        user_name=os.environ.get("OBSERVER_LOGIN_ALTERNATIVE"),
+        password=os.environ.get("OBSERVER_PASSWORD_ALTERNATIVE")
+    ))
+    if post_info is None:
+        await message.reply_text(
+            f"{post_url} is not a valid post URL, such as https://bsky.app/profile/did:plc:5n3pxz7xpnrzuxprkjewbki/post/gkklcv73c26."
+            f"\n\nUsage: /post someone.bsky.social https://bsky.app/profile/did:plc:5n3pxz7xpnrzuxprkjewbki/post/gkklcv73c26"
+        )
+        return
+    await message.reply_text(post_info)
 
 async def list_subscriptions_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     global engine
@@ -213,6 +240,9 @@ async def info_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
              "\n"
              "/following: List the users you are currently following."
              "\n"
+             "/post: Get the text of the provided post URL. If the provided URL is a response, the URL of the parent's "
+             "post will be included."
+             "\n"
              "/find: Find a BlueSky user by the provided search term."
              "\n\n\n"
              "<b>2. What kind of data is stored?</b>"
@@ -241,6 +271,8 @@ async def handle_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return await unsubscribe_command(update, context)
     if update.channel_post.text.startswith("/find"):
         return await search_command(update, context)
+    if update.channel_post.text.startswith("/post"):
+        return await get_post_info_command(update, context)
     if update.channel_post.text.startswith("/unfollowall"):
         return await unsubscribe_all_command(update, context)
     if update.channel_post.text == "/info":
@@ -272,6 +304,7 @@ def manage_subscriptions():
     tg_application.add_handler(CommandHandler("following", list_subscriptions_command))
     tg_application.add_handler(CommandHandler("unfollowall", unsubscribe_all_command))
     tg_application.add_handler(CommandHandler("info", info_command))
+    tg_application.add_handler(CommandHandler("post", get_post_info_command))
     tg_application.add_handler(CommandHandler("start", info_command))
     asyncio.create_task(tg_application.run_polling(allowed_updates=Update.ALL_TYPES))
 

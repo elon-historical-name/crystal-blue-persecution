@@ -3,6 +3,7 @@ import logging
 from typing import Optional, List
 
 import aiohttp
+from atproto_client import Client
 from dataclass_wizard import fromdict
 
 from bsky.bluesky_credentials import BlueSkyCredentials
@@ -32,6 +33,88 @@ async def fetch_handle(did: str) -> Optional[str]:
     except Exception:
         return None
 
+
+def remove_sld_tld_protocol(url: str) -> Optional[str]:
+    import re
+    # Regular expression to match the protocol, SLD, and TLD
+    pattern = r'^(https?://)?(?:www\.)?[^/]+(?=/(.*))'
+
+    # Find the match for the pattern
+    match = re.match(pattern, url)
+
+    if match:
+        return match.group(2) if match.group(2) else None
+    else:
+        return url
+
+def get_profile_identifier_and_post_identifier_from_at_proto_uri(uri: str) -> tuple[Optional[str], Optional[str]]:
+    path = remove_sld_tld_protocol(uri)
+    if path is None:
+        return None, None
+    split_post = path.replace("/", "", 1).split("/app.bsky.feed.post/")
+    if len(split_post) == 2:
+        return split_post[0], split_post[1]
+    return None, None
+
+def get_profile_identifier_and_post_identifier_from_url(url: str) -> tuple[Optional[str], Optional[str]]:
+    path = remove_sld_tld_protocol(url)
+    if path is None:
+        return None, None
+    split_post = path.replace("profile/", "").split("/post/")
+    if len(split_post) == 2:
+        return split_post[0], split_post[1]
+    return None, None
+
+def get_url_to_parent_if_available(post_url: str, credentials: BlueSkyCredentials) -> Optional[str]:
+    profile, post = get_profile_identifier_and_post_identifier_from_url(post_url)
+    if profile is None:
+        return None
+    client = Client()
+    client.login(credentials.user_name, credentials.password)
+    try:
+        record = client.get_post(post_rkey=post, profile_identify=profile)
+        if record is None:
+            return None
+        if record.value.py_type != 'app.bsky.feed.post':
+            return None
+        if record.value.reply is not None:
+            responding_to_profile, responding_to_post = get_profile_identifier_and_post_identifier_from_at_proto_uri(
+                record.value.reply.parent.uri
+            )
+            if responding_to_post is None:
+                return None
+            return f"https://bsky.app/profile/{responding_to_profile}/post/{responding_to_post}"
+    except:
+        return None
+    return None
+
+def get_post_info(post_url: str, credentials: BlueSkyCredentials) -> Optional[str]:
+    profile, post = get_profile_identifier_and_post_identifier_from_url(post_url)
+    if profile is None:
+        return None
+    client = Client()
+    client.login(credentials.user_name, credentials.password)
+    try:
+        record = client.get_post(post_rkey=post, profile_identify=profile)
+        if record is None:
+            return None
+        if record.value.py_type != 'app.bsky.feed.post':
+            return None
+        message_text = record.value.text
+        if record.value.reply is not None:
+            responding_to_profile, responding_to_post = get_profile_identifier_and_post_identifier_from_at_proto_uri(
+                record.value.reply.parent.uri
+            )
+            if responding_to_post is None:
+                return message_text
+            responding_to = get_url_to_parent_if_available(post_url, credentials=credentials)
+            if responding_to is None:
+                return message_text
+            message_text = f"Replying to: {responding_to}\n\n{message_text}"
+            return message_text
+    except:
+        return None
+    return message_text
 
 async def fetch_did(handle: str) -> Optional[str]:
     """An alternative method to find a user's handle. Should theoretically bypass network throttling.
