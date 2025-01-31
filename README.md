@@ -60,13 +60,22 @@ Your Bot's Telegram API key.
 Run 
 
 ```console
-OBSERVER_LOGIN=your-observer-account@proton.me \
-    OBSERVER_PASSWORD=your-observer-password \
-    TELEGRAM_API_KEY=telegram-api-key \
-    TELEGRAM_CHANNEL_ID=telegram-channel-id \
-    SCREENSHOT_DIRECTORY=/your/path/to/store/screenshots \
-    ACCOUNTS_JSON=/path/to/your/accounts.json
-    docker-compose up
+OBSERVER_LOGIN=your-bluesky-obser@login.me \
+  OBSERVER_PASSWORD=some-password \
+  OBSERVER_LOGIN_ALTERNATIVE=your-other-bluesky-obser@login.me \
+  OBSERVER_PASSWORD_ALTERNATIVE=some-other-password \
+  TELEGRAM_API_KEY=telgreamapikey \
+  SQLITE_DB_DIR_HOST_PATH=/Some/where/where/sqlite/file/should/be \
+  SQLITE_DB_FILENAME=db.sqlite \
+  docker compose build &&
+  OBSERVER_LOGIN=your-bluesky-obser@login.me \
+  OBSERVER_PASSWORD=some-password \
+  OBSERVER_LOGIN_ALTERNATIVE=your-other-bluesky-obser@login.me \
+  OBSERVER_PASSWORD_ALTERNATIVE=some-other-password \
+  TELEGRAM_API_KEY=telgreamapikey \
+  SQLITE_DB_DIR_HOST_PATH=/Some/where/where/sqlite/file/should/be \
+  SQLITE_DB_FILENAME=db.sqlite \
+  docker compose up -d
 ```
 
 See above for details about the environment variables.
@@ -92,5 +101,5 @@ You can use a .env file to do so.
 I've been observing stability issues all over the place - Python's asyncio unfortunately seems a little unstable within this context,
 Selenium sometimes causes issues with it's session handling and unfortunately drops sessions.
 
-In order to mitigate these issues, you could use a cron job (for now) to let Docker restart the container every 30 minutes or so.
+In order to mitigate these issues, you could use a cron job (for now) to let Docker restart the container every 10 minutes or so.
 You'll might miss some content this way, but this is still preferable to running into some weird, invalid state.
